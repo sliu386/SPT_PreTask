@@ -178,7 +178,7 @@
   /* Grid */
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 1px;
     background: var(--border);
     padding: 1px;
@@ -203,18 +203,30 @@
     align-items: center;
     justify-content: center;
     position: relative;
-    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), filter 0.35s;
+    will-change: opacity;
+    transition: opacity 0.2s ease;
   }
 
   .face-card:hover .face-avatar {
-    transform: scale(1.06);
-    filter: brightness(0.5);
+    opacity: 0.35;
   }
 
-  .face-card.liked .face-avatar { filter: brightness(0.4) sepia(1) hue-rotate(80deg) saturate(2); }
-  .face-card.disliked .face-avatar { filter: brightness(0.4) sepia(1) hue-rotate(-20deg) saturate(2); }
+  .face-card.liked .face-avatar { opacity: 0.5; }
+  .face-card.disliked .face-avatar { opacity: 0.5; }
   .face-card.liked:hover .face-avatar,
-  .face-card.disliked:hover .face-avatar { filter: brightness(0.4); }
+  .face-card.disliked:hover .face-avatar { opacity: 0.3; }
+
+  .face-card.liked::after,
+  .face-card.disliked::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0.3;
+  }
+  .face-card.liked::after { background: var(--like); }
+  .face-card.disliked::after { background: var(--dislike); }
 
   /* SVG Face */
   .face-svg { width: 75%; height: 75%; }
@@ -257,8 +269,8 @@
     justify-content: center;
     padding: 1rem;
     opacity: 0;
-    transform: translateY(6px);
-    transition: opacity 0.25s ease, transform 0.25s ease;
+    transform: translateY(4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
     pointer-events: none;
     z-index: 20;
     border: 1px solid var(--border);
@@ -271,23 +283,15 @@
 
   .bio-name {
     font-family: 'Playfair Display', serif;
-    font-size: 0.85rem;
+    font-size: 1rem;
     font-weight: 700;
     line-height: 1.2;
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.5rem;
     color: var(--accent);
   }
 
-  .bio-role {
-    font-size: 0.55rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 0.6rem;
-  }
-
   .bio-text {
-    font-size: 0.6rem;
+    font-size: 0.7rem;
     line-height: 1.6;
     color: var(--text);
     opacity: 0.85;
@@ -465,7 +469,7 @@
   @media (max-width: 600px) {
     header { padding: 1.5rem 1.5rem 1rem; flex-direction: column; align-items: flex-start; gap: 1rem; }
     .progress-section, .instructions { padding-left: 1.5rem; padding-right: 1.5rem; }
-    .grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   }
 </style>
 </head>
