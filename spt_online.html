@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>100 Faces</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --card: #1c1c1c;
+    --border: #2a2a2a;
+    --text: #e8e2d9;
+    --muted: #6b6460;
+    --like: #5cdb95;
+    --dislike: #e05c5c;
+    --accent: #c9a96e;
+    --bio-bg: rgba(10,10,10,0.97);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    cursor: none;
+  }
+
+  /* Custom cursor */
+  #cursor {
+    position: fixed;
+    width: 12px; height: 12px;
+    background: var(--accent);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transition: transform 0.15s ease, background 0.2s;
+    transform: translate(-50%, -50%);
+  }
+  #cursor.like-mode { background: var(--like); transform: translate(-50%,-50%) scale(1.6); }
+  #cursor.dislike-mode { background: var(--dislike); transform: translate(-50%,-50%) scale(1.6); }
+
+  /* Header */
+  header {
+    padding: 3rem 4rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 100;
+  }
+
+  .title-block h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .title-block p {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 0.4rem;
+  }
+
+  .scoreboard {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+  }
+
+  .score-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .score-number {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1;
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  .score-number.bounce { transform: scale(1.4); }
+  .score-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .score-like .score-number { color: var(--like); }
+  .score-dislike .score-number { color: var(--dislike); }
+
+  .score-divider { color: var(--border); font-size: 1.5rem; }
+
+  /* Progress bars */
+  .progress-section {
+    padding: 1rem 4rem;
+    display: flex;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .progress-bar-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .progress-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .progress-track {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+    width: 0%;
+  }
+
+  .fill-like { background: var(--like); }
+  .fill-dislike { background: var(--dislike); }
+
+  /* Instructions bar */
+  .instructions {
+    padding: 0.7rem 4rem;
+    display: flex;
+    gap: 2rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .inst-item {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .inst-item span {
+    display: inline-block;
+    padding: 0.15rem 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 0.6rem;
+    color: var(--text);
+  }
+
+  /* Grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    padding: 1px;
+  }
+
+  /* Face card */
+  .face-card {
+    position: relative;
+    aspect-ratio: 1;
+    background: var(--card);
+    overflow: hidden;
+    cursor: none;
+    transition: z-index 0s;
+  }
+
+  .face-card:hover { z-index: 10; }
+
+  .face-avatar {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), filter 0.35s;
+  }
+
+  .face-card:hover .face-avatar {
+    transform: scale(1.06);
+    filter: brightness(0.5);
+  }
+
+  .face-card.liked .face-avatar { filter: brightness(0.4) sepia(1) hue-rotate(80deg) saturate(2); }
+  .face-card.disliked .face-avatar { filter: brightness(0.4) sepia(1) hue-rotate(-20deg) saturate(2); }
+  .face-card.liked:hover .face-avatar,
+  .face-card.disliked:hover .face-avatar { filter: brightness(0.4); }
+
+  /* SVG Face */
+  .face-svg { width: 75%; height: 75%; }
+
+  /* Status badge */
+  .status-badge {
+    position: absolute;
+    top: 8px; right: 8px;
+    font-size: 1rem;
+    opacity: 0;
+    transform: scale(0);
+    transition: opacity 0.3s, transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .face-card.liked .status-badge,
+  .face-card.disliked .status-badge {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* ID number */
+  .face-id {
+    position: absolute;
+    bottom: 6px; left: 8px;
+    font-size: 0.55rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    pointer-events: none;
+  }
+
+  /* Bio tooltip */
+  .bio-tooltip {
+    position: absolute;
+    inset: 0;
+    background: var(--bio-bg);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+    z-index: 20;
+    border: 1px solid var(--border);
+  }
+
+  .face-card:hover .bio-tooltip {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .bio-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 0.35rem;
+    color: var(--accent);
+  }
+
+  .bio-role {
+    font-size: 0.55rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.6rem;
+  }
+
+  .bio-text {
+    font-size: 0.6rem;
+    line-height: 1.6;
+    color: var(--text);
+    opacity: 0.85;
+  }
+
+  /* Completion banner */
+  #completion-banner {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  #completion-banner.show { display: flex; }
+
+  .banner-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    text-align: center;
+    line-height: 1.1;
+  }
+
+  .banner-title em { color: var(--accent); font-style: italic; }
+
+  .banner-stats {
+    display: flex;
+    gap: 3rem;
+  }
+
+  .banner-stat {
+    text-align: center;
+  }
+
+  .banner-stat .num {
+    font-family: 'Playfair Display', serif;
+    font-size: 3rem;
+    font-weight: 700;
+  }
+
+  .banner-stat .lbl {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .banner-stat.l .num { color: var(--like); }
+  .banner-stat.d .num { color: var(--dislike); }
+
+  .banner-btn {
+    padding: 0.9rem 2.5rem;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .banner-btn:hover { background: var(--accent); color: var(--bg); }
+
+  /* Notification toast */
+  #toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(2rem);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0.6rem 1.4rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text);
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none;
+    z-index: 500;
+    white-space: nowrap;
+  }
+
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Name prompt overlay */
+  #name-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .name-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+  }
+
+  .name-box h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .name-box h2 em { color: var(--accent); font-style: italic; }
+
+  .name-box p {
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  .name-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.9rem;
+    padding: 0.8rem 1rem;
+    outline: none;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+
+  .name-input:focus { border-color: var(--accent); }
+
+  .name-btn {
+    padding: 0.8rem 2.5rem;
+    background: var(--accent);
+    border: none;
+    color: var(--bg);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .name-btn:hover { opacity: 0.85; }
+
+  /* Download banner extras */
+  .banner-instructions {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-align: center;
+    line-height: 2;
+    max-width: 360px;
+  }
+
+  .banner-instructions strong { color: var(--text); }
+
+  @media (max-width: 600px) {
+    header { padding: 1.5rem 1.5rem 1rem; flex-direction: column; align-items: flex-start; gap: 1rem; }
+    .progress-section, .instructions { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Name prompt -->
+<div id="name-overlay">
+  <div class="name-box">
+    <h2>Welcome to<br><em>100 Faces</em></h2>
+    <p>Enter your name or ID below.<br>Your results will auto-download as a CSV<br>when you've judged all 100 faces.</p>
+    <input class="name-input" id="participant-name" type="text" placeholder="Your name or ID..." maxlength="60" autocomplete="off"/>
+    <button class="name-btn" onclick="startSession()">Begin</button>
+  </div>
+</div>
+
+<div id="cursor"></div>
+
+<header>
+  <div class="title-block">
+    <h1>100 Faces</h1>
+    <p>Left click to like · Right click to dislike · Hover to learn more</p>
+  </div>
+  <div class="scoreboard">
+    <div class="score-item score-like">
+      <div class="score-number" id="like-count">0</div>
+      <div class="score-label">Liked</div>
+    </div>
+    <div class="score-divider">/</div>
+    <div class="score-item score-dislike">
+      <div class="score-number" id="dislike-count">0</div>
+      <div class="score-label">Disliked</div>
+    </div>
+  </div>
+</header>
+
+<div class="progress-section">
+  <div class="progress-bar-wrap">
+    <div class="progress-meta">
+      <span>Likes</span>
+      <span id="like-prog-label">0 / 50</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill fill-like" id="like-progress"></div>
+    </div>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-meta">
+      <span>Dislikes</span>
+      <span id="dislike-prog-label">0 / 50</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill fill-dislike" id="dislike-progress"></div>
+    </div>
+  </div>
+</div>
+
+<div class="instructions">
+  <div class="inst-item"><span>Left click</span> Like a face</div>
+  <div class="inst-item"><span>Right click</span> Dislike a face</div>
+  <div class="inst-item"><span>Hover</span> Read their bio</div>
+  <div class="inst-item"><span>Goal</span> 50 likes + 50 dislikes</div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div id="completion-banner">
+  <div class="banner-title">You've judged<br>all <em>100 faces.</em></div>
+  <div class="banner-stats">
+    <div class="banner-stat l"><div class="num" id="b-likes">50</div><div class="lbl">Liked</div></div>
+    <div class="banner-stat d"><div class="num" id="b-dislikes">50</div><div class="lbl">Disliked</div></div>
+  </div>
+  <div class="banner-instructions">
+    Your results have been <strong>downloaded automatically</strong> as a CSV file.<br>
+    Please send the file <strong id="b-filename"></strong> to the researcher.
+  </div>
+  <button class="banner-btn" onclick="downloadCSV()">Download Again</button>
+  <button class="banner-btn" onclick="resetAll()" style="border-color:var(--muted);color:var(--muted);">Start Over</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Face data ─────────────────────────────────────────────────────────────────
+// Fetching from same GitHub Pages origin — no CORS issues
+const BIO_CSV_URLS = [
+  '/SPT_PreTask/Social%20Processing%20Bios.csv',
+  '/SPT_PreTask/Social%20Processing%20Bio.csv',
+];
+
+// Parse a TSV/CSV row respecting quoted fields
+function parseCSVLine(line, delim = '\t') {
+  const cols = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQ = !inQ; continue; }
+    if (ch === delim && !inQ) { cols.push(cur.trim()); cur = ''; continue; }
+    cur += ch;
+  }
+  cols.push(cur.trim());
+  return cols;
+}
+
+// Detect delimiter (tab vs comma) from header line
+function detectDelim(header) {
+  return header.includes('\t') ? '\t' : ',';
+}
+
+async function fetchBios() {
+  const bioMap = new Map();
+  let text = null;
+
+  for (const url of BIO_CSV_URLS) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        text = await res.text();
+        console.log('Loaded bios from:', url);
+        break;
+      } else {
+        console.warn('Failed to fetch:', url, res.status);
+      }
+    } catch(e) {
+      console.warn('Error fetching:', url, e.message);
+    }
+  }
+
+  if (!text) {
+    console.error('Could not load bios from any URL. Check filenames on GitHub.');
+    return bioMap;
+  }
+
+  try {
+    const lines = text.split('\n').filter(l => l.trim());
+    const delim = detectDelim(lines[0]);
+    const headers = parseCSVLine(lines[0], delim).map(h => h.trim());
+    console.log('CSV headers found:', headers);
+
+    // Find column indices
+    const idx = {
+      file:     headers.findIndex(h => h.toLowerCase().includes('file name')),
+      initials: headers.findIndex(h => h.toLowerCase().includes('initial')),
+      city:     headers.findIndex(h => h.toLowerCase().includes('city')),
+      hobbies:  headers.findIndex(h => h.toLowerCase().includes('hobbi')),
+      subject:  headers.findIndex(h => h.toLowerCase().includes('subject')),
+      food:     headers.findIndex(h => h.toLowerCase().includes('food')),
+    };
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVLine(lines[i], delim);
+      const key = cols[idx.file]?.trim().replace(/\.jpg$/i, '').toLowerCase();
+      if (!key) continue;
+      const parts = [];
+      if (idx.city     >= 0 && cols[idx.city]?.trim())     parts.push(`📍 ${cols[idx.city].trim()}`);
+      if (idx.hobbies  >= 0 && cols[idx.hobbies]?.trim())  parts.push(`🎯 ${cols[idx.hobbies].trim()}`);
+      if (idx.subject  >= 0 && cols[idx.subject]?.trim())  parts.push(`📚 ${cols[idx.subject].trim()}`);
+      if (idx.food     >= 0 && cols[idx.food]?.trim())     parts.push(`🍽️ ${cols[idx.food].trim()}`);
+      const initials = idx.initials >= 0 ? (cols[idx.initials]?.trim() || '') : '';
+      bioMap.set(key, { bio: parts.join('<br>'), initials });
+    }
+  } catch(e) {
+    console.error('Error parsing bios CSV:', e.message);
+  }
+  return bioMap;
+}
+
+// Build the master list of all 100 faces (25 per category)
+function buildFaceList(bioMap) {
+  const faces = [];
+  const categories = [
+    { prefix: 'fem_nc',  gender: 'female', ethnicity: 'Non-Caucasian', start: 1,  end: 25  },
+    { prefix: 'fem_c',   gender: 'female', ethnicity: 'Caucasian',     start: 26, end: 50  },
+    { prefix: 'male_nc', gender: 'male',   ethnicity: 'Non-Caucasian', start: 51, end: 75  },
+    { prefix: 'male_c',  gender: 'male',   ethnicity: 'Caucasian',     start: 76, end: 100 },
+  ];
+  for (const cat of categories) {
+    for (let n = cat.start; n <= cat.end; n++) {
+      const key = `${cat.prefix}_${n}`.toLowerCase();
+      const entry = bioMap.get(key);
+      faces.push({
+        file:      `/SPT_PreTask/Stim/${cat.prefix}_${n}.jpg`,
+        id:        `${cat.prefix}_${n}`,
+        gender:    cat.gender,
+        ethnicity: cat.ethnicity,
+        number:    n,
+        initials:  entry?.initials || '—',
+        bio:       entry?.bio || `${cat.gender === 'female' ? 'Female' : 'Male'} · ${cat.ethnicity}`,
+      });
+    }
+  }
+  return faces;
+}
+
+// ── Seeded shuffle (Mulberry32 PRNG) ─────────────────────────────────────────
+// Using a fixed seed means EVERY participant sees the exact same order.
+// Change SHUFFLE_SEED to any integer if you want a different fixed order.
+const SHUFFLE_SEED = 20240101;
+
+function seededRandom(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// Interweaved shuffle: guarantees no more than 2 same-gender faces in a row
+function interweavedShuffle(faces, seed) {
+  const rng = seededRandom(seed);
+
+  // Separate into gender buckets, shuffle each independently
+  const females = faces.filter(f => f.gender === 'female');
+  const males   = faces.filter(f => f.gender === 'male');
+
+  const shuffle = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+  const sf = shuffle(females);
+  const sm = shuffle(males);
+
+  // Interweave: alternate pairs to keep gender balanced throughout
+  // Pattern: F F M M F F M M ... with occasional single alternations
+  const result = [];
+  let fi = 0, mi = 0;
+  let lastGender = null, streak = 0;
+
+  while (fi < sf.length || mi < sm.length) {
+    const canF = fi < sf.length;
+    const canM = mi < sm.length;
+
+    let pickFemale;
+    if (!canF) pickFemale = false;
+    else if (!canM) pickFemale = true;
+    else if (streak >= 2 && lastGender === 'female') pickFemale = false;
+    else if (streak >= 2 && lastGender === 'male')   pickFemale = true;
+    else pickFemale = rng() < 0.5;
+
+    if (pickFemale) {
+      result.push(sf[fi++]);
+      streak = lastGender === 'female' ? streak + 1 : 1;
+      lastGender = 'female';
+    } else {
+      result.push(sm[mi++]);
+      streak = lastGender === 'male' ? streak + 1 : 1;
+      lastGender = 'male';
+    }
+  }
+  return result;
+}
+
+// Build and shuffle once — done after CSV fetch in init below
+let ALL_FACES = [];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let likes = 0, dislikes = 0;
+const MAX = 50;
+const decisions = new Array(100).fill(null); // null | 'like' | 'dislike'
+let participantName = '';
+
+// ── Name prompt ───────────────────────────────────────────────────────────────
+function startSession() {
+  const val = document.getElementById('participant-name').value.trim();
+  participantName = val || 'participant';
+  document.getElementById('name-overlay').style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('participant-name');
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') startSession(); });
+});
+
+// ── CSV Download ──────────────────────────────────────────────────────────────
+function downloadCSV() {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const safeName = participantName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  const filename = `faces_${safeName}_${timestamp}.csv`;
+
+  // One row per face with full metadata
+  const rows = [['position','face_id','gender','ethnicity','face_number','decision','participant','timestamp']];
+  const ts = new Date().toISOString();
+  ALL_FACES.forEach((face, i) => {
+    rows.push([
+      i + 1,
+      face.id,
+      face.gender,
+      face.ethnicity,
+      face.number,
+      decisions[i] || 'undecided',
+      `"${participantName}"`,
+      ts
+    ]);
+  });
+
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  document.getElementById('b-filename').textContent = filename;
+}
+
+// ── Storage (persist to window.storage if available) ──────────────────────────
+async function saveState() {
+  try {
+    if (window.storage) {
+      await window.storage.set('faces_decisions', JSON.stringify(decisions));
+      await window.storage.set('faces_likes', String(likes));
+      await window.storage.set('faces_dislikes', String(dislikes));
+    }
+  } catch(e) {}
+}
+
+async function loadState() {
+  try {
+    if (window.storage) {
+      const d = await window.storage.get('faces_decisions');
+      const l = await window.storage.get('faces_likes');
+      const dk = await window.storage.get('faces_dislikes');
+      if (d) {
+        const arr = JSON.parse(d.value);
+        arr.forEach((v, i) => { decisions[i] = v; });
+        likes = parseInt(l?.value || 0);
+        dislikes = parseInt(dk?.value || 0);
+        return true;
+      }
+    }
+  } catch(e) {}
+  return false;
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function updateScoreboard() {
+  const lEl = document.getElementById('like-count');
+  const dEl = document.getElementById('dislike-count');
+  lEl.textContent = likes;
+  dEl.textContent = dislikes;
+
+  document.getElementById('like-prog-label').textContent = `${likes} / ${MAX}`;
+  document.getElementById('dislike-prog-label').textContent = `${dislikes} / ${MAX}`;
+  document.getElementById('like-progress').style.width = `${(likes / MAX) * 100}%`;
+  document.getElementById('dislike-progress').style.width = `${(dislikes / MAX) * 100}%`;
+}
+
+function bounceStat(id) {
+  const el = document.getElementById(id);
+  el.classList.remove('bounce');
+  void el.offsetWidth;
+  el.classList.add('bounce');
+  setTimeout(() => el.classList.remove('bounce'), 400);
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+function checkCompletion() {
+  if (likes >= MAX && dislikes >= MAX) {
+    document.getElementById('b-likes').textContent = likes;
+    document.getElementById('b-dislikes').textContent = dislikes;
+    downloadCSV();
+    document.getElementById('completion-banner').classList.add('show');
+  }
+}
+
+// ── Build grid ────────────────────────────────────────────────────────────────
+function buildGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  ALL_FACES.forEach((face, i) => {
+    const card = document.createElement('div');
+    card.className = 'face-card';
+    card.dataset.index = i;
+
+    card.innerHTML = `
+      <div class="face-avatar">
+        <img src="${face.file}" alt="${face.id}"
+          style="width:100%;height:100%;object-fit:cover;display:block;"
+          onerror="this.style.background='#2a2a2a';this.alt='Missing: ${face.file}'">
+      </div>
+      <div class="bio-tooltip">
+        <div class="bio-name">${face.initials}</div>
+        <div class="bio-role">${face.gender === 'female' ? 'Female' : 'Male'} · ${face.ethnicity}</div>
+        <div class="bio-text" style="line-height:1.9">${face.bio}</div>
+      </div>
+      <div class="status-badge" id="badge-${i}"></div>
+      <div class="face-id">#${String(i+1).padStart(3,'0')}</div>
+    `;
+
+    // Restore state
+    if (decisions[i] === 'like') applyDecision(card, i, 'like', false);
+    else if (decisions[i] === 'dislike') applyDecision(card, i, 'dislike', false);
+
+    card.addEventListener('click', () => handleDecision(i, 'like'));
+    card.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      handleDecision(i, 'dislike');
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+function applyDecision(card, i, type, animate = true) {
+  card.classList.remove('liked', 'disliked');
+  card.classList.add(type === 'like' ? 'liked' : 'disliked');
+  const badge = document.getElementById(`badge-${i}`);
+  badge.textContent = type === 'like' ? '♥' : '✕';
+  badge.style.color = type === 'like' ? 'var(--like)' : 'var(--dislike)';
+  if (animate) {
+    badge.style.transform = 'scale(0)';
+    badge.offsetWidth;
+    badge.style.transform = '';
+  }
+}
+
+function handleDecision(i, type) {
+  const card = document.querySelectorAll('.face-card')[i];
+  const prev = decisions[i];
+
+  // Toggle off if same
+  if (prev === type) {
+    decisions[i] = null;
+    card.classList.remove('liked', 'disliked');
+    document.getElementById(`badge-${i}`).textContent = '';
+    if (type === 'like') likes = Math.max(0, likes - 1);
+    else dislikes = Math.max(0, dislikes - 1);
+    updateScoreboard();
+    saveState();
+    return;
+  }
+
+  // Check cap
+  if (type === 'like' && likes >= MAX && prev !== 'like') {
+    showToast('Like quota full — 50 reached!'); return;
+  }
+  if (type === 'dislike' && dislikes >= MAX && prev !== 'dislike') {
+    showToast('Dislike quota full — 50 reached!'); return;
+  }
+
+  // Undo previous
+  if (prev === 'like') likes = Math.max(0, likes - 1);
+  if (prev === 'dislike') dislikes = Math.max(0, dislikes - 1);
+
+  decisions[i] = type;
+  if (type === 'like') { likes++; bounceStat('like-count'); }
+  else { dislikes++; bounceStat('dislike-count'); }
+
+  applyDecision(card, i, type);
+  updateScoreboard();
+  saveState();
+  checkCompletion();
+}
+
+async function resetAll() {
+  likes = 0; dislikes = 0;
+  decisions.fill(null);
+  participantName = '';
+  document.getElementById('completion-banner').classList.remove('show');
+  document.getElementById('participant-name').value = '';
+  document.getElementById('name-overlay').style.display = 'flex';
+  updateScoreboard();
+  buildGrid();
+  saveState();
+}
+
+// ── Cursor ────────────────────────────────────────────────────────────────────
+const cursor = document.getElementById('cursor');
+document.addEventListener('mousemove', e => {
+  cursor.style.left = e.clientX + 'px';
+  cursor.style.top = e.clientY + 'px';
+});
+document.addEventListener('mousedown', e => {
+  if (e.button === 0) cursor.classList.add('like-mode');
+  if (e.button === 2) cursor.classList.add('dislike-mode');
+});
+document.addEventListener('mouseup', () => {
+  cursor.classList.remove('like-mode', 'dislike-mode');
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(async () => {
+  // Show a subtle loading state while fetching bios
+  document.getElementById('grid').innerHTML =
+    '<div style="grid-column:1/-1;padding:4rem;text-align:center;color:var(--muted);font-size:0.7rem;letter-spacing:0.15em;">LOADING BIOS...</div>';
+
+  const bioMap = await fetchBios();
+  ALL_FACES = interweavedShuffle(buildFaceList(bioMap), SHUFFLE_SEED);
+
+  await loadState();
+  buildGrid();
+  updateScoreboard();
+  checkCompletion();
+})();
+</script>
+</body>
+</html>
